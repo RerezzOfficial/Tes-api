@@ -51,6 +51,16 @@ app.get("/api/chatgpt-v2", checkIP, async (req, res) => {
 
   try {
     const response = await ChatGPTv2(q, model || "openai");
+    
+    // Jika response status false, berarti terjadi error di API eksternal
+    if (response.status === false) {
+      return res.status(500).json({
+        status: false,
+        creator: "I'M Rerezz Official",
+        error: response.error
+      });
+    }
+
     res.status(200).json({
       status: true,
       creator: "I'M Rerezz Official",
@@ -110,4 +120,4 @@ const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`Server berjalan di http://localhost:${PORT}`);
 });
-    
+      
