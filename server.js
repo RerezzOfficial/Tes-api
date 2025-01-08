@@ -52,7 +52,7 @@ app.get("/api/chatgpt-v2", checkIP, async (req, res) => {
   try {
     const response = await ChatGPTv2(q, model || "openai");
 
-    // Jika response status false, berarti terjadi error di API eksternal
+    // Jika API mengembalikan status false, berarti terjadi error
     if (response.status === false) {
       return res.status(500).json({
         status: false,
@@ -61,11 +61,17 @@ app.get("/api/chatgpt-v2", checkIP, async (req, res) => {
       });
     }
 
+    // Respons jika API berhasil memberikan hasil
     res.status(200).json({
       status: true,
       creator: "I'M Rerezz Official",
-      result: response
+      result: {
+        status: 'success',
+        message: 'AI response successfully received',
+        data: response // response data dari API eksternal
+      }
     });
+
   } catch (error) {
     // Menambahkan penanganan error untuk API eksternal
     if (error.response && error.response.status === 403) {
@@ -128,4 +134,3 @@ const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`Server berjalan di http://localhost:${PORT}`);
 });
-           q
