@@ -97,6 +97,22 @@ async function ChatGPTv2(question, model = "openai") {
   }
 }
 
+app.post('/addcase', async (req, res) => {
+  const { caseName, caseContent } = req.body;
+
+  if (!caseName || !caseContent) {
+    return res.status(400).json({ message: 'Nama case dan konten case diperlukan.' });
+  }
+
+  try {
+    // Kirim respons balik ke bot untuk menulis ke RezzDev.js
+    const result = `case '${caseName}': {\n  ${caseContent}\n  break;\n}`;
+    return res.status(201).json({ message: 'Case berhasil dibuat.', caseCode: result });
+  } catch (error) {
+    return res.status(500).json({ message: `Gagal membuat case: ${error.message}` });
+  }
+});
+
 // Jalankan server di port 3000
 const PORT = 3000;
 app.listen(PORT, () => {
