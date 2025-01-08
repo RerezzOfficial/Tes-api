@@ -29,7 +29,7 @@ function checkIP(req, res, next) {
   if (allowedIPs.includes(clientIP)) {
     next();
   } else {
-    return res.status(403).send(`IP ${clientIP} tidak diizinkan untuk mengakses API ChatGPT.`);
+    return res.status(403).send(`IP kamu (${clientIP}) tidak diizinkan untuk mengakses API ChatGPT. Harap hubungi admin.`);
   }
 }
 
@@ -102,4 +102,3 @@ const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`Server berjalan di http://localhost:${PORT}`);
 });
-    
