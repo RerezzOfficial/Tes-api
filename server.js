@@ -1,4 +1,5 @@
 const express = require('express');
+const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const app = express();
@@ -8,7 +9,7 @@ app.use(express.json());
 // Path file JSON untuk IP yang diizinkan
 const allowedIPsFile = path.join(__dirname, 'allowedIPs.json');
 
-// Fungsi untuk memuat IP dari file JSON
+// Fungsi untuk memuat IP yang diizinkan dari file JSON
 function loadAllowedIPs() {
   try {
     const data = fs.readFileSync(allowedIPsFile, 'utf8');
@@ -20,8 +21,8 @@ function loadAllowedIPs() {
   }
 }
 
-// Middleware untuk memeriksa IP
-app.use((req, res, next) => {
+// Middleware untuk memeriksa IP yang diizinkan
+function checkIP(req, res, next) {
   const allowedIPs = loadAllowedIPs();
   const clientIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
@@ -30,71 +31,67 @@ app.use((req, res, next) => {
   } else {
     res.status(403).json({ message: 'Akses ditolak. IP Anda tidak diizinkan.' });
   }
-});
+}
 
-// Endpoint addcase
-app.post('/addcase', async (req, res) => {
-  const { caseName, caseContent } = req.body;
-
-  if (!caseName || !caseContent) {
-    return res.status(400).json({ message: 'Nama case dan konten case diperlukan.' });
+// Endpoint untuk ChatGPT v2 yang hanya bisa diakses oleh IP yang diizinkan
+app.get("/api/chatgpt-v2", checkIP, async (req, res) => {
+  const { q, model } = req.query;
+  
+  if (!q) {
+    return res.status(400).json({ status: false, creator: "I'M Rerezz Official", error: "Isi parameter Query" });
   }
 
   try {
-    const result = `case '${caseName}': {\n  ${caseContent}\n  break;\n}`;
-    return res.status(201).json({ message: 'Case berhasil dibuat.', caseCode: result });
+    const response = await ChatGPTv2(q, model || "openai");
+    res.status(200).json({
+      status: true,
+      creator: "I'M Rerezz Official",
+      result: response
+    });
   } catch (error) {
-    return res.status(500).json({ message: `Gagal membuat case: ${error.message}` });
+    res.status(500).json({ status: false, creator: "I'M Rerezz Official", error: error.message });
   }
 });
 
-// Endpoint untuk menambah IP yang diizinkan
-app.post('/add-ip', (req, res) => {
-  const { newIP } = req.body;
-
-  if (!newIP) {
-    return res.status(400).json({ message: 'IP baru diperlukan.' });
+// Fungsi untuk mengambil response dari ChatGPT v2
+async function ChatGPTv2(question, model = "openai") {
+  const validModels = ["openai", "llama", "mistral", "mistral-large"];
+  if (!validModels.includes(model)) {
+    return { status: false, error: "Model yang ditentukan tidak valid." };
   }
 
-  const allowedIPs = loadAllowedIPs();
+  const data = JSON.stringify({
+    messages: [question],
+    character: model
+  });
 
-  if (allowedIPs.includes(newIP)) {
-    return res.status(400).json({ message: 'IP sudah ada dalam daftar.' });
-  }
-
-  allowedIPs.push(newIP);
+  const config = {
+    method: 'POST',
+    url: 'https://chatsandbox.com/api/chat',
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Android 10; Mobile; rv:131.0) Gecko/131.0 Firefox/131.0',
+      'Content-Type': 'application/json',
+      'accept-language': 'id-ID',
+      'referer': `https://chatsandbox.com/chat/${model}`,
+      'origin': 'https://chatsandbox.com',
+      'alt-used': 'chatsandbox.com',
+      'sec-fetch-dest': 'empty',
+      'sec-fetch-mode': 'cors',
+      'sec-fetch-site': 'same-origin',
+      'priority': 'u=0',
+      'te': 'trailers',
+      'Cookie': '_ga_V22YK5WBFD=GS1.1.1734654982.3.0.1734654982.0.0.0; _ga=GA1.1.803874982.1734528677'
+    },
+    data: data
+  };
 
   try {
-    fs.writeFileSync(allowedIPsFile, JSON.stringify({ allowedIPs }, null, 2));
-    res.status(201).json({ message: 'IP berhasil ditambahkan.' });
+    const response = await axios.request(config);
+    return response.data;
   } catch (error) {
-    res.status(500).json({ message: 'Gagal menyimpan IP baru: ' + error.message });
+    return { status: false, error: error.message };
   }
-});
-
-// Endpoint untuk menghapus IP dari daftar
-app.delete('/remove-ip', (req, res) => {
-  const { removeIP } = req.body;
-
-  if (!removeIP) {
-    return res.status(400).json({ message: 'IP yang akan dihapus diperlukan.' });
-  }
-
-  let allowedIPs = loadAllowedIPs();
-
-  if (!allowedIPs.includes(removeIP)) {
-    return res.status(400).json({ message: 'IP tidak ditemukan dalam daftar.' });
-  }
-
-  allowedIPs = allowedIPs.filter(ip => ip !== removeIP);
-
-  try {
-    fs.writeFileSync(allowedIPsFile, JSON.stringify({ allowedIPs }, null, 2));
-    res.status(200).json({ message: 'IP berhasil dihapus.' });
-  } catch (error) {
-    res.status(500).json({ message: 'Gagal menghapus IP: ' + error.message });
-  }
-});
+}
 
 // Jalankan server di port 3000
 const PORT = 3000;
