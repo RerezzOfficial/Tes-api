@@ -1,0 +1,20 @@
+{
+  "name": "chatgpt-api",
+  "version": "1.0.0",
+  "description": "API untuk mengakses ChatGPT v2 dengan pembatasan IP",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "axios": "^0.27.2",
+    "express": "^4.18.1",
+    "fs": "0.0.1-security",
+    "path": "^0.12.7"
+  },
+  "engines": {
+    "node": "16.x"
+  },
+  "author": "I'M Rerezz Official",
+  "license": "MIT"
+}
