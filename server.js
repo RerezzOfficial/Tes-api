@@ -3,52 +3,73 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const app = express();
-const port = 3000;
 
-// Fungsi untuk memeriksa apakah IP ada di dalam daftar yang diizinkan
-const allowedIPs = JSON.parse(fs.readFileSync(path.join(__dirname, 'allowed_ips.json')));
+app.use(express.json());
 
-const isAllowedIP = (ip) => {
-  return allowedIPs.includes(ip);
-};
+// Path file JSON untuk IP yang diizinkan
+const allowedIPsFile = path.join(__dirname, 'allowedIPs.json');
 
-// ChatGPT API endpoint
-app.get("/api/chatgpt-v2", async (req, res) => {
-  const clientIP = req.ip; // Mendapatkan IP pengakses
-  if (!isAllowedIP(clientIP)) {
-    return res.status(403).json({
-      status: false,
-      error: "IP tidak terdaftar",
-      message: `IP ${clientIP} tidak terdaftar dalam daftar akses API ChatGPT.`
+// Fungsi untuk memuat IP yang diizinkan dari file JSON
+function loadAllowedIPs() {
+  try {
+    const data = fs.readFileSync(allowedIPsFile, 'utf8');
+    const parsedData = JSON.parse(data);
+    return parsedData.allowedIPs || [];
+  } catch (error) {
+    console.error('Gagal memuat daftar IP:', error.message);
+    return [];
+  }
+}
+
+// Middleware untuk memeriksa IP yang diizinkan
+function checkIP(req, res, next) {
+  const allowedIPs = loadAllowedIPs();
+  const clientIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+  if (allowedIPs.includes(clientIP)) {
+    next();
+  } else {
+    return res.status(403).json({ 
+      status: false, 
+      error: "IP tidak terdaftar", 
+      message: `IP ${clientIP} tidak diizinkan untuk mengakses API ChatGPT.` 
+    });
+  }
+}
+
+// Endpoint untuk ChatGPT v2 yang hanya bisa diakses oleh IP yang diizinkan
+app.get("/api/chatgpt-v2", checkIP, async (req, res) => {
+  const { q, model } = req.query;
+  
+  if (!q) {
+    return res.status(400).json({ 
+      status: false, 
+      creator: "I'M Rerezz Official", 
+      error: "Isi parameter Query" 
     });
   }
 
-  const { q } = req.query;
-  if (!q) {
-    return res.status(400).json({ status: false, error: "Isi parameter Query" });
-  }
-
   try {
-    const response = await ChatGPTv2(q, "openai");
+    const response = await ChatGPTv2(q, model || "openai");
     res.status(200).json({
       status: true,
       creator: "I'M Rerezz Official",
       result: response
     });
   } catch (error) {
-    res.status(500).json({
-      status: false,
-      creator: "Hello Line",
-      error: error.message
+    res.status(500).json({ 
+      status: false, 
+      creator: "I'M Rerezz Official", 
+      error: error.message 
     });
   }
 });
 
-// ChatGPT Function
+// Fungsi untuk mengambil response dari ChatGPT v2
 async function ChatGPTv2(question, model = "openai") {
   const validModels = ["openai", "llama", "mistral", "mistral-large"];
   if (!validModels.includes(model)) {
-    return { status: false, error: "Invalid model specified." };
+    return { status: false, error: "Model yang ditentukan tidak valid." };
   }
 
   const data = JSON.stringify({
@@ -84,6 +105,9 @@ async function ChatGPTv2(question, model = "openai") {
   }
 }
 
-app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
+// Jalankan server di port 3000
+const PORT = 3000;
+app.listen(PORT, () => {
+  console.log(`Server berjalan di http://localhost:${PORT}`);
 });
+    
