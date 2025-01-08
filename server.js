@@ -29,11 +29,7 @@ function checkIP(req, res, next) {
   if (allowedIPs.includes(clientIP)) {
     next();
   } else {
-    return res.status(403).json({ 
-      status: false, 
-      error: "IP tidak terdaftar", 
-      message: `IP ${clientIP} tidak diizinkan untuk mengakses API ChatGPT.` 
-    });
+    return res.status(403).send(`IP ${clientIP} tidak diizinkan untuk mengakses API ChatGPT.`);
   }
 }
 
@@ -42,50 +38,22 @@ app.get("/api/chatgpt-v2", checkIP, async (req, res) => {
   const { q, model } = req.query;
   
   if (!q) {
-    return res.status(400).json({ 
-      status: false, 
-      creator: "I'M Rerezz Official", 
-      error: "Isi parameter Query" 
-    });
+    return res.status(400).send("Parameter 'q' tidak ditemukan, harap masukkan pertanyaan.");
   }
 
   try {
     const response = await ChatGPTv2(q, model || "openai");
 
-    // Jika API mengembalikan status false, berarti terjadi error
+    // Jika API mengembalikan error
     if (response.status === false) {
-      return res.status(500).json({
-        status: false,
-        creator: "I'M Rerezz Official",
-        error: response.error
-      });
+      return res.status(500).send(`Error dari API ChatGPT: ${response.error}`);
     }
 
-    // Respons jika API berhasil memberikan hasil
-    res.status(200).json({
-      status: true,
-      creator: "I'M Rerezz Official",
-      result: {
-        status: 'success',
-        message: 'AI response successfully received',
-        data: response // response data dari API eksternal
-      }
-    });
-
+    // Respons sukses
+    res.status(200).send(`AI Response:\n${response}`);
+    
   } catch (error) {
-    // Menambahkan penanganan error untuk API eksternal
-    if (error.response && error.response.status === 403) {
-      return res.status(403).json({
-        status: false,
-        creator: "I'M Rerezz Official",
-        error: "IP tidak terdaftar di API eksternal ChatGPT."
-      });
-    }
-    res.status(500).json({ 
-      status: false, 
-      creator: "I'M Rerezz Official", 
-      error: error.message 
-    });
+    res.status(500).send(`Terjadi kesalahan: ${error.message}`);
   }
 });
 
@@ -134,3 +102,4 @@ const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`Server berjalan di http://localhost:${PORT}`);
 });
+    
